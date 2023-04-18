@@ -1,0 +1,5 @@
+FROM gcc:latest
+WORKDIR /usr/src/app
+COPY c++ /usr/src/app
+RUN g++ -o multiply multiply.cpp
+CMD ["./multiply"]

@@ -15,22 +15,20 @@ def run_docker(image_name, container_name, entrypoint, number):
     result = subprocess.check_output(cmd, shell=True).decode("utf-8").strip()
     end_time = time.time()
     execution_time = end_time - start_time
-    return int(result), execution_time
+    return result, execution_time
 
 
-def save_to_csv(filename, run_number, argument, result, execution_time):
-    if not os.path.exists('results'):
-        os.makedirs('results')
+def save_to_csv(csv_filename, argument, run_number, result, execution_time):
+    fieldnames = ['run_number', 'argument', 'result', 'execution_time']
 
-    with open(os.path.join('results', filename), mode='a', newline='') as csvfile:
-        fieldnames = ['run_number', 'argument', 'result', 'execution_time']
+    with open(os.path.join('results', csv_filename), mode='a', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
         if csvfile.tell() == 0:  # Check if the file is empty
             writer.writeheader()
 
-        writer.writerow(
-            {'run_number': run_number, 'argument': argument, 'result': result, 'execution_time': execution_time})
+        writer.writerow({'run_number': run_number, 'argument': argument, 'result': result, 'execution_time': execution_time})
+
 
 
 if __name__ == '__main__':

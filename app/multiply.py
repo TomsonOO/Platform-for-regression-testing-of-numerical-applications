@@ -1,7 +1,15 @@
 import argparse
+import time
 
 def multiply(number):
-    return number * 10
+    array_2d = [[0 for j in range(4)] for i in range(3)]
+    start_time = time.time()
+    # A loop that runs for 1-2 seconds
+    while time.time() - start_time < 2:
+        pass
+
+    return number * 5
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

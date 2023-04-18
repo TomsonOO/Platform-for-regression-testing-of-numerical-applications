@@ -9,8 +9,8 @@ def build_docker(image_name, context_path, dockerfile):
     cmd = f"docker build -t {image_name} -f {dockerfile} {context_path}"
     subprocess.run(cmd, shell=True, check=True)
 
-def run_docker(image_name, container_name, entrypoint, number):
-    cmd = f"docker run --rm --name {container_name} {image_name} {entrypoint} {number}"
+def run_docker(image_name, container_name, entrypoint, *args):
+    cmd = f"docker run --rm --name {container_name} {image_name} {entrypoint} {' '.join(map(str, args))}"
     start_time = time.time()
     result = subprocess.check_output(cmd, shell=True).decode("utf-8").strip()
     end_time = time.time()
@@ -18,8 +18,9 @@ def run_docker(image_name, container_name, entrypoint, number):
     return result, execution_time
 
 
-def save_to_csv(csv_filename, argument, run_number, result, execution_time):
-    fieldnames = ['run_number', 'argument', 'result', 'execution_time']
+def save_to_csv(csv_filename, run_number, result, execution_time, *args):
+    fieldnames = ['run_number', 'result', 'execution_time']
+    fieldnames.extend([f'arg_{i}' for i in range(1, len(args) + 1)])
 
     with open(os.path.join('results', csv_filename), mode='a', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -27,8 +28,10 @@ def save_to_csv(csv_filename, argument, run_number, result, execution_time):
         if csvfile.tell() == 0:  # Check if the file is empty
             writer.writeheader()
 
-        writer.writerow({'run_number': run_number, 'argument': argument, 'result': result, 'execution_time': execution_time})
+        row_data = {'run_number': run_number, 'result': result, 'execution_time': execution_time}
+        row_data.update({f'arg_{i}': arg for i, arg in enumerate(args, start=1)})
 
+        writer.writerow(row_data)
 
 
 if __name__ == '__main__':
@@ -41,7 +44,9 @@ if __name__ == '__main__':
 
     build_docker(config.image_name, config.context_path, config.dockerfile)
 
-    result, execution_time = run_docker(config.image_name, config.container_name, config.entrypoint, config.number)
+    formatted_entrypoint = config.entrypoint.format(*config.arguments)
+    result, execution_time = run_docker(config.image_name, config.container_name, formatted_entrypoint)
+
     print(f"Result: {result}")
     print(f"Execution time: {execution_time:.4f} seconds")
 
@@ -55,4 +60,4 @@ if __name__ == '__main__':
         last_run_number = 0
 
     run_number = last_run_number + 1
-    save_to_csv(csv_filename, run_number, config.number, result, execution_time)
+    save_to_csv(csv_filename, run_number, result, execution_time, *config.arguments)

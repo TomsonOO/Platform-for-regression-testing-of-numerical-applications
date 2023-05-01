@@ -4,4 +4,4 @@ container_name = "docki-multiply-python-container"
 context_path = "app_multiply"
 dockerfile = "app_multiply/Dockerfile"
 entrypoint = "python /usr/src/app/multiply.py --number {}"
-arguments = [12]
+arguments = [3]

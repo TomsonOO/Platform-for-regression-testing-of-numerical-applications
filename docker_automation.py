@@ -11,6 +11,7 @@ def build_docker(image_name, context_path, dockerfile):
 
 def run_docker(image_name, container_name, entrypoint, *args):
     cmd = f"docker run --rm --name {container_name} {image_name} {entrypoint} {' '.join(map(str, args))}"
+    # print(cmd)
     start_time = time.time()
     result = subprocess.check_output(cmd, shell=True).decode("utf-8").strip()
     end_time = time.time()

@@ -1,15 +1,20 @@
 import argparse
-import time
+import csv
+import os
 
 def multiply(number):
-    # array_2d = [[0 for j in range(4)] for i in range(3)]
-    # start_time = time.time()
-    # A loop that runs for 1-2 seconds
-    # while time.time() - start_time < 2:
-    #     pass
-
     return number * 5
 
+
+def save_to_csv(result):
+    filename = 'result.csv'
+    mode = 'x' if not os.path.exists(filename) else 'w'
+
+    with open(filename, mode, newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        if mode == 'x':
+            writer.writerow(['Result'])
+        writer.writerow([result])
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -18,3 +23,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
     result = multiply(args.number)
     print(result)
+
+    save_to_csv(result)

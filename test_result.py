@@ -12,7 +12,7 @@ def get_result_from_csv():
 def test_result_consistency():
     # Run docker_automation.py 5 times
     for _ in range(5):
-        subprocess.run(["python", "docker_automation.py", "python_app_config.json"])
+        subprocess.run(["python", "docker_automation.py", "multiply_py.json"])
 
     results = get_result_from_csv()
 

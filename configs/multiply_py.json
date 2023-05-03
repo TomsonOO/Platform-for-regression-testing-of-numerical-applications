@@ -1,0 +1,13 @@
+{
+  "app_name": "multiply",
+  "image_name": "docker-multiply-python",
+  "context_path": ".",
+  "dockerfile": "Dockerfile",
+  "container_name": "multiply-python",
+  "entrypoint": "python multiply.py --number {}",
+  "arguments": [3],
+  "output_format": "csv",
+  "app_output_file": "results/result.csv",
+  "output_columns": ["Result"],
+  "output_path": "output_files"
+}

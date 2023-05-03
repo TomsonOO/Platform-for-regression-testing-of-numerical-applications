@@ -1,0 +1,10 @@
+{
+  "app_name": "heat_equation",
+  "dockerfile_location": "heat_equation/Dockerfile",
+  "docker_image_name": "heat_equation_image",
+  "entrypoint": ["python", "main.py"],
+  "results_directory": "results",
+  "app_output_file": "results/heat_equation_results.csv",
+  "output_columns": ["temperature"],
+  "arguments": [1.0, 1.0, 10, 10, 1.0, 100, 0.1]
+}

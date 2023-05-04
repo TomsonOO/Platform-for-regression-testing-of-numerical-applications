@@ -78,6 +78,8 @@ if __name__ == '__main__':
     # Create a table for the config_name if it doesn't exist
     db_manager.create_table_for_config(config_name)
 
+
+
     # Calculate the run number
     last_run_number = max([row[0] for row in sqlite3.connect(database_name).cursor().execute(
         f'SELECT run_number FROM {config_name}_results')]) if \
@@ -88,12 +90,12 @@ if __name__ == '__main__':
     # Save the result and execution time to the database
     db_manager.insert_result(config_name, run_number, result, execution_time, config["arguments"])
     db_manager.update_data_json_file(config_name)
-
+    db_manager.perform_regression_test(config_name, result, config["arguments"])
     # Test the consistency of the result
     # is_consistent = check_consistency(database_name, 'results', 'result')
     # print(f"Result consistency: {is_consistent}")
 
-    db_manager.update_data_json_file(config_name)
+    # db_manager.update_data_json_file(config_name)
 
     # Get the data as JSON
     data_json = db_manager.get_data_as_json(config_name)

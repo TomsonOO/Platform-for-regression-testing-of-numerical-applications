@@ -13,6 +13,11 @@ socket.on('configs', (configs) => {
         dropdown.append(`<option value="${config}">${config}</option>`);
     });
     fetch_and_update_data(dropdown.val());
+
+    let selected_config = dropdown.val();
+    if (selected_config) {
+        fetch_and_update_data(selected_config);
+    }
 });
 
 socket.on('update_data', (config_name) => {
@@ -22,25 +27,30 @@ socket.on('update_data', (config_name) => {
     }
 });
 
-$("#config-dropdown").on("change", function () {
-    let selected_config = $(this).val();
-    fetch_and_update_data(selected_config);
+$(document).ready(function () {
+    $("#config-dropdown").change(function () {
+        let selected_config = $(this).val();
+        console.log("Config changed to:", selected_config);
+        if (selected_config) {
+            fetch_and_update_data(selected_config);
+        }
+    });
 });
 
 function fetch_and_update_data(config_name) {
+    console.log("Fetching data for config:", config_name); // Add this line
     $.ajax({
         url: `/get_data?config_name=${config_name}`,
-        method: 'GET',
+        method: "GET",
         success: (data) => {
             let results = JSON.parse(data);
             update_table(results);
         },
         error: () => {
-            console.error('Error fetching data for config:', config_name);
-        }
+            console.error("Error fetching data for config:", config_name);
+        },
     });
 }
-
 function update_table(results) {
     let table = $('#results-table');
     table.empty();

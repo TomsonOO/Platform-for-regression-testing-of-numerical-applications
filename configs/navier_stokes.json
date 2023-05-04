@@ -1,0 +1,15 @@
+{
+  "app_name": "navier_stokes",
+  "image_name": "navier-stokes",
+  "context_path": "navier_stokes/",
+  "dockerfile_location": "navier_stokes/Dockerfile",
+  "dockerfile": "navier_stokes/Dockerfile",
+  "container_name": "navier_stokes",
+  "entrypoint": "python main.py",
+  "output_format": "csv",
+  "results_directory": "results",
+  "app_output_file": "results/navier_stokes_output.csv",
+  "output_columns": ["x", "y", "u_x", "u_y"],
+  "output_path": "",
+  "arguments": [2.0, 20, 0.01, 2, "navier_stokes_output.csv"]
+}

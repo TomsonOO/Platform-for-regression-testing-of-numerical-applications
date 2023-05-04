@@ -1,5 +1,6 @@
 import sqlite3
 import json
+from datetime import datetime
 
 
 class DatabaseManager:
@@ -16,7 +17,9 @@ class DatabaseManager:
                 run_number INTEGER,
                 result TEXT,
                 execution_time REAL,
-                arguments TEXT
+                arguments TEXT,
+                test TEXT DEFAULT "not tested",
+                run_date TEXT
             )
         ''')
 
@@ -28,8 +31,10 @@ class DatabaseManager:
         cur = conn.cursor()
 
         table_name = f"{config_name}_results"
-        cur.execute(f"INSERT INTO {table_name} (run_number, result, execution_time, arguments) VALUES (?, ?, ?, ?)",
-                    (run_number, result, execution_time, json.dumps(arguments)))
+        run_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        cur.execute(
+            f"INSERT INTO {table_name} (run_number, result, execution_time, arguments, test, run_date) VALUES (?, ?, ?, ?, ?, ?)",
+            (run_number, result, execution_time, json.dumps(arguments), "not tested", run_date))
 
         conn.commit()
         conn.close()
@@ -43,7 +48,7 @@ class DatabaseManager:
 
         conn.close()
 
-        data = [dict(zip(["run_number", "result", "execution_time", "arguments"], row)) for row in results]
+        data = [dict(zip(["run_number", "result", "execution_time", "arguments", "test", "run_date"], row)) for row in results]
 
         return json.dumps(data)
 
@@ -65,3 +70,43 @@ class DatabaseManager:
         conn.close()
 
         return config_names
+
+    def perform_regression_test(self, config_name, latest_result, arguments):
+        conn = sqlite3.connect(self.database_name)
+        cursor = conn.cursor()
+
+        table_name = f"{config_name}_results"
+
+        # Find all results with the same arguments in the database
+        cursor.execute(f"SELECT result FROM {table_name} WHERE arguments = ?",
+                       (json.dumps(arguments),))
+        results = cursor.fetchall()
+
+        if len(results) >= 2:
+            first_result = results[0]
+
+            # Compare the first result with the latest result
+            test_passed = first_result[0] == latest_result
+
+            if test_passed:
+                label = "passed"
+            else:
+                label = "failed"
+
+            # Retrieve the run_number of the latest result
+            cursor.execute(
+                f"SELECT run_number FROM {table_name} WHERE arguments = ? AND result = ? ORDER BY run_number DESC LIMIT 1",
+                (json.dumps(arguments), latest_result))
+            latest_run_number = cursor.fetchone()[0]
+
+            # Update the latest result with the test label
+            cursor.execute(f"UPDATE {table_name} SET test = ? WHERE run_number = ?",
+                           (label, latest_run_number))
+            conn.commit()
+
+            print(
+                f"Test complete. The latest result is {'the same as' if test_passed else 'different from'} the first result.")
+        else:
+            print("Less than two matching results found in the database for the given arguments. Test not performed.")
+
+        conn.close()

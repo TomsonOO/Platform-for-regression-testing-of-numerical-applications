@@ -1,10 +1,15 @@
 {
   "app_name": "heat_equation",
+  "image_name": "heat-equation",
+  "context_path": "heat_equation/",
   "dockerfile_location": "heat_equation/Dockerfile",
-  "docker_image_name": "heat_equation_image",
-  "entrypoint": ["python", "main.py"],
+  "dockerfile": "heat_equation/Dockerfile",
+  "container_name": "heat_equation",
+  "entrypoint": "python main.py",
+  "output_format": "csv",
   "results_directory": "results",
-  "app_output_file": "results/heat_equation_results.csv",
+  "app_output_file": "results/result.csv",
   "output_columns": ["temperature"],
+  "output_path": "",
   "arguments": [1.0, 1.0, 10, 10, 1.0, 100, 0.1]
 }

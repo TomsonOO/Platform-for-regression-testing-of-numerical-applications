@@ -7,6 +7,7 @@ import time
 import requests
 import pandas as pd
 import os
+from database_manager import DatabaseManager
 
 
 def process_results(results, app_name, config):
@@ -17,6 +18,10 @@ def process_results(results, app_name, config):
     df = pd.DataFrame(data, columns=output_columns)
     df.to_csv(output_file, index=False)
     print(f"Results saved to {output_file}")
+    try:
+        requests.get('http://localhost:5000/trigger_update')
+    except requests.exceptions.RequestException:
+        pass
 
 def build_docker(image_name, context_path, dockerfile):
     cmd = f"docker build -t {image_name} -f {dockerfile} {context_path}"
@@ -33,58 +38,6 @@ def run_docker(image_name, container_name, entrypoint, *args):
     end_time = time.time()
     execution_time = end_time - start_time
     return result, execution_time
-
-
-def initialize_database(database_name):
-    conn = sqlite3.connect(database_name)
-    cur = conn.cursor()
-
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS results (
-            run_number INTEGER PRIMARY KEY,
-            result TEXT,
-            arguments TEXT
-        )
-    ''')
-
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS execution_times (
-            run_number INTEGER PRIMARY KEY,
-            execution_time REAL
-        )
-    ''')
-
-    conn.commit()
-    conn.close()
-
-
-def save_to_database(database_name, run_number, result, execution_time, arguments):
-    conn = sqlite3.connect(database_name)
-    cur = conn.cursor()
-
-    cur.execute('INSERT INTO results (run_number, result, arguments) VALUES (?, ?, ?)',
-                (run_number, result, json.dumps(arguments)))
-    cur.execute('INSERT INTO execution_times (run_number, execution_time) VALUES (?, ?)', (run_number, execution_time))
-
-    conn.commit()
-    conn.close()
-
-
-def get_data_as_json(database_name):
-    conn = sqlite3.connect(database_name)
-    cur = conn.cursor()
-
-    results = cur.execute('SELECT * FROM results').fetchall()
-    execution_times = cur.execute('SELECT * FROM execution_times').fetchall()
-
-    conn.close()
-
-    data = {
-        "results": [dict(zip(["run_number", "result", "arguments"], row)) for row in results],
-        "execution_times": [dict(zip(["run_number", "execution_time"], row)) for row in execution_times],
-    }
-
-    return json.dumps(data)
 
 
 def load_config(config_file):
@@ -119,27 +72,35 @@ if __name__ == '__main__':
 
     # Initialize the database
     database_name = 'results.db'
-    initialize_database(database_name)
+    db_manager = DatabaseManager(database_name)
+    config_name = config["app_name"]
+
+    # Create a table for the config_name if it doesn't exist
+    db_manager.create_table_for_config(config_name)
 
     # Calculate the run number
-    last_run_number = max([row[0] for row in sqlite3.connect(database_name).cursor().execute('SELECT run_number FROM '
-                                                                                             'results')]) if \
-        sqlite3.connect(database_name).cursor().execute('SELECT   run_number FROM results').fetchall() else 0
+    last_run_number = max([row[0] for row in sqlite3.connect(database_name).cursor().execute(
+        f'SELECT run_number FROM {config_name}_results')]) if \
+        sqlite3.connect(database_name).cursor().execute(
+            f'SELECT run_number FROM {config_name}_results').fetchall() else 0
     run_number = last_run_number + 1
 
     # Save the result and execution time to the database
-    save_to_database(database_name, run_number, result, execution_time, config["arguments"])
+    db_manager.insert_result(config_name, run_number, result, execution_time, config["arguments"])
+    db_manager.update_data_json_file(config_name)
 
     # Test the consistency of the result
-    is_consistent = check_consistency(database_name, 'results', 'result')
-    print(f"Result consistency: {is_consistent}")
+    # is_consistent = check_consistency(database_name, 'results', 'result')
+    # print(f"Result consistency: {is_consistent}")
+
+    db_manager.update_data_json_file(config_name)
 
     # Get the data as JSON
-    data_json = get_data_as_json(database_name)
+    data_json = db_manager.get_data_as_json(config_name)
 
     # Send the JSON data to the Flask app
     flask_url = 'http://127.0.0.1:5000/'  # Update the URL if the Flask app is running on a different address or port
-    response = requests.post(flask_url, data={'data': data_json})
+    response = requests.get(flask_url, json={'data': data_json})
 
     if response.status_code == 200:
         print("Data sent to the Flask app successfully.")

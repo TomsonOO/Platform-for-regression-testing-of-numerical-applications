@@ -1,30 +1,51 @@
-from flask import Flask, render_template
-import json
-import matplotlib.pyplot as plt
-import io
-import base64
+from flask import Flask, jsonify, request
+from database_manager import DatabaseManager
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
+# app.config['SECRET_KEY'] = 'mysecretkey'
+socketio = SocketIO(app, cors_allowed_origins="*")
+db_manager = DatabaseManager('results.db')
 
-@app.route('/', methods=['GET', 'POST'])
+
+def get_config_names_from_database():
+    config_names = db_manager.get_config_names()
+    return config_names
+
+
+def get_data_for_config_from_database(config_name):
+    data = db_manager.get_data_as_json(config_name)
+    return data
+
+
+@app.route('/get_configs', methods=['GET'])
+def get_configs():
+    config_names = get_config_names_from_database()
+    return jsonify(config_names)
+
+
+@app.route('/get_data', methods=['GET'])
+def get_data():
+    config_name = request.args.get('config_name')
+    data = get_data_for_config_from_database(config_name)
+    return jsonify(data)
+
+
+@app.route('/')
 def index():
-    with open('results/data.json', 'r') as f:
-        data = json.load(f)
+    return app.send_static_file('index.html')
 
-    # Generate histogram
-    # plt.hist([float(et['execution_time']) for et in data['execution_times']])
-    # plt.xlabel('Execution Time (seconds)')
-    # plt.ylabel('Frequency')
-    # plt.title('Execution Time Distribution')
-    #
-    # # Convert plot to image and encode in base64
-    # buffer = io.BytesIO()
-    # plt.savefig(buffer, format='png')
-    # buffer.seek(0)
-    # img_base64 = base64.b64encode(buffer.getvalue()).decode()
 
-    # Pass the base64 encoded image to the HTML template    img_base64=img_base64
-    return render_template('index.html', data=data)
+@socketio.on('get_configs')
+def handle_get_configs():
+    config_names = get_config_names_from_database()
+    emit('configs', config_names)
+
+
+@socketio.on('trigger_update')
+def handle_trigger_update(config_name):
+    emit('update_data', config_name, broadcast=True)
+
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    socketio.run(app)

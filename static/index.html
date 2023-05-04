@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regression Test Results</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.17/dist/tailwind.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="/static/main.js"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto py-4">
+        <h1 class="text-3xl font-bold mb-4">Regression Test Results</h1>
+        <div class="mb-4">
+            <label for="config-dropdown" class="mr-2">Select config:</label>
+            <select id="config-dropdown" class="border rounded p-2">
+                <!-- Options will be populated using JavaScript -->
+            </select>
+        </div>
+        <table id="results-table" class="table-auto w-full">
+            <!-- Table content will be populated using JavaScript -->
+        </table>
+    </div>
+</body>
+</html>

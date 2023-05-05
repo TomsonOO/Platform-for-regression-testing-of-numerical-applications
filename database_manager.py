@@ -1,6 +1,7 @@
 import sqlite3
 import json
 from datetime import datetime
+import pandas as pd
 
 
 class DatabaseManager:
@@ -19,22 +20,24 @@ class DatabaseManager:
                 execution_time REAL,
                 arguments TEXT,
                 test TEXT DEFAULT "not tested",
-                run_date TEXT
+                run_date TEXT,
+                cpu_percent REAL,
+                memory_percent REAL
             )
         ''')
 
         conn.commit()
         conn.close()
 
-    def insert_result(self, config_name, run_number, result, execution_time, arguments):
+    def insert_result(self, config_name, run_number, result, execution_time, arguments, cpu_percent, memory_percent):
         conn = sqlite3.connect(self.database_name)
         cur = conn.cursor()
 
         table_name = f"{config_name}_results"
         run_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         cur.execute(
-            f"INSERT INTO {table_name} (run_number, result, execution_time, arguments, test, run_date) VALUES (?, ?, ?, ?, ?, ?)",
-            (run_number, result, execution_time, json.dumps(arguments), "not tested", run_date))
+            f"INSERT INTO {table_name} (run_number, result, execution_time, arguments, test, run_date, cpu_percent, memory_percent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (run_number, result, execution_time, json.dumps(arguments), "not tested", run_date, cpu_percent, memory_percent))
 
         conn.commit()
         conn.close()
@@ -48,7 +51,8 @@ class DatabaseManager:
 
         conn.close()
 
-        data = [dict(zip(["run_number", "result", "execution_time", "arguments", "test", "run_date"], row)) for row in results]
+        data = [dict(zip(["run_number", "result", "execution_time", "arguments", "test", "run_date", "cpu_percent",
+                          "memory_percent"], row)) for row in results]
 
         return json.dumps(data)
 
@@ -110,3 +114,11 @@ class DatabaseManager:
             print("Less than two matching results found in the database for the given arguments. Test not performed.")
 
         conn.close()
+
+    def get_data_as_dataframe(self, config_name):
+        conn = sqlite3.connect(self.database_name)
+        table_name = f"{config_name}_results"
+        df = pd.read_sql_query(f"SELECT * FROM {table_name}", conn)
+        conn.close()
+        return df
+

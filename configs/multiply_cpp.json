@@ -5,5 +5,9 @@
   "context_path": ".",
   "dockerfile": "c++/Dockerfile_cpp",
   "entrypoint": "/usr/src/app/multiply {}",
+  "output_format": "csv",
+  "app_output_file": "results/result.csv",
+  "output_columns": ["Result"],
+  "output_path": "",
   "arguments": [4]
 }

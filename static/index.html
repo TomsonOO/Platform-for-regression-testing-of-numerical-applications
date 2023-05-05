@@ -8,6 +8,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="/static/main.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
 </head>
 <body class="bg-gray-100">
     <div class="container mx-auto py-4">
@@ -18,9 +20,14 @@
                 <!-- Options will be populated using JavaScript -->
             </select>
         </div>
-        <table id="results-table" class="table-auto w-full">
+        <table id="results-table" class="table-auto w-full mt-10">
             <!-- Table content will be populated using JavaScript -->
         </table>
+        <div id="execution_time_chart" class="mt-20"></div>
+<!--        <div style="height: 300px;"></div>-->
+    <div class="h-32 mt-20 mb-20 "></div>
+
     </div>
+
 </body>
 </html>

@@ -38,19 +38,21 @@ $(document).ready(function () {
 });
 
 function fetch_and_update_data(config_name) {
-    console.log("Fetching data for config:", config_name); // Add this line
+    console.log("Fetching data for config:", config_name);
     $.ajax({
         url: `/get_data?config_name=${config_name}`,
         method: "GET",
         success: (data) => {
             let results = JSON.parse(data);
             update_table(results);
+            updateChart(config_name); // Add this line to update the chart
         },
         error: () => {
             console.error("Error fetching data for config:", config_name);
         },
     });
 }
+
 function update_table(results) {
     let table = $('#results-table');
     table.empty();
@@ -70,5 +72,14 @@ function update_table(results) {
             row.append(`<td class="border px-4 py-2">${result[header]}</td>`);
         });
         table.append(row);
+    });
+}
+
+function updateChart(config_name) {
+  fetch(`/get_chart_data?config_name=${config_name}`)
+    .then((response) => response.json())
+    .then((chartData) => {
+      let chart = document.getElementById("execution_time_chart");
+      Plotly.newPlot(chart, chartData.data, chartData.layout); // Include the layout here
     });
 }

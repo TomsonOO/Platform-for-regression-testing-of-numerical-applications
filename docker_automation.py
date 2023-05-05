@@ -1,5 +1,4 @@
 import subprocess
-from check_consistency import check_consistency
 import sys
 import json
 import sqlite3
@@ -8,6 +7,7 @@ import requests
 import pandas as pd
 import os
 from database_manager import DatabaseManager
+import psutil
 
 
 def process_results(results, app_name, config):
@@ -23,6 +23,7 @@ def process_results(results, app_name, config):
     except requests.exceptions.RequestException:
         pass
 
+
 def build_docker(image_name, context_path, dockerfile):
     cmd = f"docker build -t {image_name} -f {dockerfile} {context_path}"
     subprocess.run(cmd, shell=True, check=True)
@@ -33,11 +34,25 @@ def run_docker(image_name, container_name, entrypoint, *args):
     container_output_path = "/app/output"
 
     cmd = f"docker run --rm --name {container_name} -v {host_output_path}:{container_output_path} {image_name} {entrypoint} {' '.join(map(str, args))}"
+
+    # Get the initial resource usage
     start_time = time.time()
+    initial_cpu_percent = psutil.cpu_percent()
+    initial_memory_percent = psutil.virtual_memory().percent
+
     result = subprocess.check_output(cmd, shell=True).decode("utf-8").strip()
     end_time = time.time()
     execution_time = end_time - start_time
-    return result, execution_time
+
+    # Get the final resource usage
+    final_cpu_percent = psutil.cpu_percent()
+    final_memory_percent = psutil.virtual_memory().percent
+
+    # Calculate the average resource usage during the execution
+    avg_cpu_percent = (initial_cpu_percent + final_cpu_percent) / 2
+    avg_memory_percent = (initial_memory_percent + final_memory_percent) / 2
+
+    return result, execution_time, avg_cpu_percent, avg_memory_percent
 
 
 def load_config(config_file):
@@ -60,11 +75,15 @@ if __name__ == '__main__':
 
     output_path = config["output_path"]
     formatted_entrypoint = config["entrypoint"].format(*config["arguments"])
-    result, execution_time = run_docker(config["image_name"], config["container_name"], formatted_entrypoint,
-                                        output_path)
+    result, execution_time, cpu_percent, memory_percent = run_docker(config["image_name"], config["container_name"],
+                                                                     formatted_entrypoint,
+                                                                     output_path)
 
     print(f"Result: {result}")
     print(f"Execution time: {execution_time:.4f} seconds")
+
+    print(f"Average CPU usage: {cpu_percent:.2f}%")
+    print(f"Average memory usage: {memory_percent:.2f}%")
 
     # Save the results to the specified format
     if config["output_format"] == "csv":
@@ -78,8 +97,6 @@ if __name__ == '__main__':
     # Create a table for the config_name if it doesn't exist
     db_manager.create_table_for_config(config_name)
 
-
-
     # Calculate the run number
     last_run_number = max([row[0] for row in sqlite3.connect(database_name).cursor().execute(
         f'SELECT run_number FROM {config_name}_results')]) if \
@@ -88,14 +105,9 @@ if __name__ == '__main__':
     run_number = last_run_number + 1
 
     # Save the result and execution time to the database
-    db_manager.insert_result(config_name, run_number, result, execution_time, config["arguments"])
+    db_manager.insert_result(config_name, run_number, result, execution_time, config["arguments"], cpu_percent, memory_percent)
     db_manager.update_data_json_file(config_name)
     db_manager.perform_regression_test(config_name, result, config["arguments"])
-    # Test the consistency of the result
-    # is_consistent = check_consistency(database_name, 'results', 'result')
-    # print(f"Result consistency: {is_consistent}")
-
-    # db_manager.update_data_json_file(config_name)
 
     # Get the data as JSON
     data_json = db_manager.get_data_as_json(config_name)

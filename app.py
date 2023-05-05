@@ -1,6 +1,9 @@
 from flask import Flask, jsonify, request
 from database_manager import DatabaseManager
 from flask_socketio import SocketIO, emit
+import plotly.graph_objects as go
+import plotly
+import json
 
 app = Flask(__name__)
 # app.config['SECRET_KEY'] = 'mysecretkey'
@@ -45,6 +48,42 @@ def handle_get_configs():
 @socketio.on('trigger_update')
 def handle_trigger_update(config_name):
     emit('update_data', config_name, broadcast=True)
+
+
+@app.route('/get_chart_data', methods=['GET'])
+def get_chart_data():
+    config_name = request.args.get('config_name')
+    data = db_manager.get_data_as_dataframe(config_name)
+    chart_data = [
+        go.Scatter(
+            x=data['run_number'],
+            y=data['execution_time'],
+            mode='lines+markers',
+            name='Execution Time'
+        )
+    ]
+
+    layout = go.Layout(
+        title="Execution Time vs Run Number",
+        xaxis=dict(
+            title="Run Number",
+            showgrid=True,
+            gridcolor='lightgray'
+        ),
+        yaxis=dict(
+            title="Execution Time (s)",
+            showgrid=True,
+            gridcolor='lightgray'
+        ),
+        plot_bgcolor='white'
+    )
+
+    response_data = {
+        "data": chart_data,
+        "layout": layout
+    }
+
+    return json.dumps(response_data, cls=plotly.utils.PlotlyJSONEncoder)
 
 
 if __name__ == '__main__':

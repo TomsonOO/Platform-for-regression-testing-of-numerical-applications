@@ -45,7 +45,7 @@ function fetch_and_update_data(config_name) {
         success: (data) => {
             let results = JSON.parse(data);
             update_table(results);
-            updateChart(config_name); // Add this line to update the chart
+            updateCharts(config_name); // Rename the function to updateCharts
         },
         error: () => {
             console.error("Error fetching data for config:", config_name);
@@ -75,11 +75,20 @@ function update_table(results) {
     });
 }
 
-function updateChart(config_name) {
-  fetch(`/get_chart_data?config_name=${config_name}`)
+function updateCharts(config_name) {
+  fetch(`/get_all_chart_data?config_name=${config_name}`)
     .then((response) => response.json())
-    .then((chartData) => {
-      let chart = document.getElementById("execution_time_chart");
-      Plotly.newPlot(chart, chartData.data, chartData.layout); // Include the layout here
+    .then((allChartData) => {
+      // Update execution time chart
+      let execution_time_chart = document.getElementById("execution_time_chart");
+      Plotly.newPlot(execution_time_chart, allChartData.execution_time_chart.data, allChartData.execution_time_chart.layout);
+
+      // Update CPU percentage chart
+      let cpu_percent_chart = document.getElementById("cpu_percent_chart");
+      Plotly.newPlot(cpu_percent_chart, allChartData.cpu_percent_chart.data, allChartData.cpu_percent_chart.layout);
+
+      // Update memory percentage chart
+      let memory_percent_chart = document.getElementById("memory_percent_chart");
+      Plotly.newPlot(memory_percent_chart, allChartData.memory_percent_chart.data, allChartData.memory_percent_chart.layout);
     });
 }

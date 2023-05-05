@@ -5,6 +5,15 @@ import os
 def multiply(number):
     return number * 5
 
+def complex_multiply(number, iterations=10**7):
+    result = number
+    for _ in range(iterations):
+        result = (result * 5) % (10**9 + 7)  # Modulo to prevent overflow
+        for _ in range(10):  # Nested loop to add more complexity
+            result = (result + 1) % (10**9 + 7)
+            result = (result - 1) % (10**9 + 7)
+    return result
+
 
 def save_to_csv(result):
     output_dir = "/app/output"

@@ -57,12 +57,19 @@ def calculate_cpu_percent(d, previous_cpu, previous_system):
     cpu_delta = cpu_total - previous_cpu
 
     cpu_system = float(d["cpu_stats"].get("system_cpu_usage", 0))
+    # cpu_system = float(d["cpu_stats"]["system_cpu_usage"])
     if cpu_system == 0:
         return 0.0, cpu_total, cpu_system
 
     system_delta = cpu_system - previous_system
+    # online_cpus = d["cpu_stats"].get("online_cpus", len(d["cpu_stats"]["cpu_usage"].get("percpu_usage", [None])))
     online_cpus = d["cpu_stats"].get("online_cpus", len(d["cpu_stats"]["cpu_usage"].get("percpu_usage", [None])))
-    cpu_percent = (cpu_delta / system_delta) * online_cpus * 100.0 if system_delta > 0.0 else 0.0
+
+    # cpu_percent = (cpu_delta / system_delta) * online_cpus * 100.0 if system_delta > 0.0 else 0.0
+
+    if system_delta > 0.0:
+        cpu_percent = (cpu_delta / system_delta) * online_cpus * 100.0
+
 
     return cpu_percent, cpu_total, cpu_system
 
@@ -93,6 +100,7 @@ def run_docker(image_name, container_name, command):
         memory_usage = stat['memory_stats']['usage'] / stat['memory_stats']['limit'] if 'usage' in stat[
             'memory_stats'] and 'limit' in stat['memory_stats'] else 0
 
+        print("eee", cpu_percent)
         total_cpu_usage += cpu_percent
         total_memory_usage += memory_usage
         samples_count += 1
@@ -100,7 +108,11 @@ def run_docker(image_name, container_name, command):
         if stat['read'] == stat['preread']:  # 'read' and 'preread' are the same when the container stops
             break
 
-    average_cpu_usage = (total_cpu_usage / samples_count) if samples_count > 0 else 5  # Percentage
+    if samples_count > 0:
+        average_cpu_usage = (total_cpu_usage / samples_count)
+    else:
+        average_cpu_usage = 0  # Percentage
+
     average_memory_usage = (total_memory_usage / samples_count) * 100 if samples_count > 0 else 5  # Percentage
 
     logs = get_container_logs(container)

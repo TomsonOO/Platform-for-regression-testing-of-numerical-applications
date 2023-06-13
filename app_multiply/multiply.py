@@ -17,13 +17,13 @@ def complex_multiply(number, iterations=10**7):
 
 def save_to_csv(result):
     output_dir = "/app/output"
+    os.makedirs(output_dir, exist_ok=True)  # Create the output directory if it doesn't exist
     filename = os.path.join(output_dir, 'result.csv')
-    mode = 'x' if not os.path.exists(filename) else 'w'
+    mode = 'w'  # Always open in write mode
 
     with open(filename, mode, newline='') as csvfile:
         writer = csv.writer(csvfile)
-        if mode == 'x':
-            writer.writerow(['Result'])
+        writer.writerow(['Result'])
         writer.writerow([result])
 
 

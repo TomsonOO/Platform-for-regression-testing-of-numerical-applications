@@ -8,6 +8,10 @@ import pandas as pd
 import os
 from database_manager import DatabaseManager
 import psutil
+import docker
+import time
+
+client = docker.from_env()
 
 
 def process_results(results, app_name, config):
@@ -23,37 +27,109 @@ def process_results(results, app_name, config):
     except requests.exceptions.RequestException:
         pass
 
-
 def build_docker(image_name, context_path, dockerfile):
-    cmd = f"docker build -t {image_name} -f {dockerfile} {context_path}"
-    subprocess.run(cmd, shell=True, check=True)
+    client = docker.from_env()
+
+    print("Building Docker image...")
+
+    # Create full Dockerfile path
+    dockerfile_path = os.path.join(dockerfile)
+
+    # If the Dockerfile path is not valid, raise an error
+    if not os.path.isfile(dockerfile_path):
+        raise ValueError(f"Dockerfile does not exist: {dockerfile_path}")
+
+    # Ensure the Dockerfile path is relative to the context path
+    dockerfile_relative_path = os.path.relpath(dockerfile_path, context_path)
+
+    try:
+        image, build_logs = client.images.build(path=context_path, tag=image_name, dockerfile=dockerfile_relative_path,
+                                                rm=True, forcerm=True)
+        print("Docker image built.")
+    except docker.errors.BuildError as e:
+        print('Image build failed.')
+        for log in e.build_log:
+            print(log)
+        sys.exit(1)
+
+def calculate_cpu_percent(d, previous_cpu, previous_system):
+    cpu_total = float(d["cpu_stats"]["cpu_usage"]["total_usage"])
+    cpu_delta = cpu_total - previous_cpu
+
+    cpu_system = float(d["cpu_stats"].get("system_cpu_usage", 0))
+    if cpu_system == 0:
+        return 0.0, cpu_total, cpu_system
+
+    system_delta = cpu_system - previous_system
+    online_cpus = d["cpu_stats"].get("online_cpus", len(d["cpu_stats"]["cpu_usage"].get("percpu_usage", [None])))
+    cpu_percent = (cpu_delta / system_delta) * online_cpus * 100.0 if system_delta > 0.0 else 0.0
+
+    return cpu_percent, cpu_total, cpu_system
 
 
-def run_docker(image_name, container_name, entrypoint, *args):
-    host_output_path = os.path.abspath('.')
-    container_output_path = "/app/output"
+def run_docker(image_name, container_name, command):
+    client = docker.from_env()
+    previous_cpu = previous_system = 0.0
 
-    cmd = f"docker run --rm --name {container_name} -v {host_output_path}:{container_output_path} {image_name} {entrypoint} {' '.join(map(str, args))}"
+    try:
+        container = client.containers.get(container_name)
+        container.stop()
+        container.remove()
+        print(f"Stopped and removed container {container_name}")
+    except docker.errors.NotFound:
+        print(f"Container {container_name} not found. It may not have been created or may have already been removed.")
 
-    # Get the initial resource usage
+    container = client.containers.create(image_name, name=container_name, command=command, detach=True)
+    container.start()
+
+    total_cpu_usage = total_memory_usage = samples_count = 0
     start_time = time.time()
-    initial_cpu_percent = psutil.cpu_percent()
-    initial_memory_percent = psutil.virtual_memory().percent
 
-    result = subprocess.check_output(cmd, shell=True).decode("utf-8").strip()
+    for stat in container.stats(stream=True):
+        stat = json.loads(stat)
+
+        cpu_percent, previous_cpu, previous_system = calculate_cpu_percent(stat, previous_cpu, previous_system)
+
+        memory_usage = stat['memory_stats']['usage'] / stat['memory_stats']['limit'] if 'usage' in stat[
+            'memory_stats'] and 'limit' in stat['memory_stats'] else 0
+
+        total_cpu_usage += cpu_percent
+        total_memory_usage += memory_usage
+        samples_count += 1
+
+        if stat['read'] == stat['preread']:  # 'read' and 'preread' are the same when the container stops
+            break
+
+    average_cpu_usage = (total_cpu_usage / samples_count) if samples_count > 0 else 5  # Percentage
+    average_memory_usage = (total_memory_usage / samples_count) * 100 if samples_count > 0 else 5  # Percentage
+
+    logs = get_container_logs(container)
+    result = container.logs()
+    # print("eeeeeeee", result)
+    container.remove()
+
     end_time = time.time()
     execution_time = end_time - start_time
 
-    # Get the final resource usage
-    final_cpu_percent = psutil.cpu_percent()
-    final_memory_percent = psutil.virtual_memory().percent
+    return result.decode(), execution_time, average_cpu_usage, average_memory_usage
 
-    # Calculate the average resource usage during the execution
-    avg_cpu_percent = (initial_cpu_percent + final_cpu_percent) / 2
-    avg_memory_percent = (initial_memory_percent + final_memory_percent) / 2
 
-    return result, execution_time, avg_cpu_percent, avg_memory_percent
+def stop_and_remove_container(container_name):
+    client = docker.from_env()
 
+    try:
+        container = client.containers.get(container_name)
+        container.stop()
+        container.remove()
+        print(f"Stopped and removed container {container_name}")
+    except docker.errors.NotFound:
+        print(f"Container {container_name} not found. It may not have been created or may have already been removed.")
+    except docker.errors.APIError as e:
+        print(f"An unexpected Docker API error occurred: {e}")
+        sys.exit(1)
+
+def get_container_logs(container):
+    return container.logs()
 
 def load_config(config_file):
     with open(config_file) as f:
@@ -72,16 +148,12 @@ if __name__ == '__main__':
         config = json.load(f)
 
     build_docker(config["image_name"], config["context_path"], config["dockerfile"])
-
     output_path = config["output_path"]
     formatted_entrypoint = config["entrypoint"].format(*config["arguments"])
-    result, execution_time, cpu_percent, memory_percent = run_docker(config["image_name"], config["container_name"],
-                                                                     formatted_entrypoint,
-                                                                     output_path)
+    result, execution_time, cpu_percent, memory_percent = run_docker(config["image_name"], config["container_name"], formatted_entrypoint)
 
     print(f"Result: {result}")
     print(f"Execution time: {execution_time:.4f} seconds")
-
     print(f"Average CPU usage: {cpu_percent:.2f}%")
     print(f"Average memory usage: {memory_percent:.2f}%")
 

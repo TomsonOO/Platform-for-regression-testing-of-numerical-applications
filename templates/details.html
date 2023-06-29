@@ -1,0 +1,36 @@
+<!-- details.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="/static/main.js"></script>
+
+    <!-- ... -->
+</head>
+<body>
+    <h1>Run Details</h1>
+    <table>
+        <!-- Iterate over the data and create a table row for each item -->
+        {% for item in data %}
+        <tr>
+            <td>{{ item.cpu_usage }}</td>
+            <td>{{ item.memory_usage }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+
+    <!-- Include your JavaScript file -->
+
+    <div id="cpuUsageChart"></div>
+    <div id="memoryUsageChart"></div>
+
+
+    <!-- Call the fetchAndUpdateData function when the page is loaded -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        fetchAndUpdateData_details(JSON.parse('{{ data | tojson | safe }}'));
+    });
+</script>
+</body>
+</html>

@@ -2,13 +2,26 @@ import sqlite3
 import json
 from datetime import datetime
 import pandas as pd
-
+import os
 
 class DatabaseManager:
-    def __init__(self, database_name):
-        self.database_name = database_name
+    def __init__(self, database_name, config_name):
+        # specify directory
+        self.directory = 'databases/'
+        # self.conn = sqlite3.connect(db_file)
+        # self.cursor = self.conn.cursor()
 
-    def create_table_for_config(self, config_name):
+        # make sure directory exists
+        if not os.path.exists(self.directory):
+            os.makedirs(self.directory)
+
+        # full path to database
+        self.database_name = os.path.join(self.directory, database_name)
+
+        if not os.path.isfile(self.database_name):
+            self.create_table(config_name)
+
+    def create_table(self, config_name):
         conn = sqlite3.connect(self.database_name)
         cur = conn.cursor()
 
@@ -33,11 +46,58 @@ class DatabaseManager:
         conn = sqlite3.connect(self.database_name)
         cur = conn.cursor()
 
+        run_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        cur.execute(
+            f"INSERT INTO results (run_number, result, execution_time, arguments, test, run_date, cpu_percent, memory_percent, config_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (run_number, result, execution_time, json.dumps(arguments), "not tested", run_date, cpu_percent, memory_percent, config_name))
+
+        conn.commit()
+        conn.close()
+
+    def switch_database(self, db_file):
+        self.conn.close()  # Close the current connection
+        self.conn = sqlite3.connect(db_file)
+        self.cursor = self.conn.cursor()
+
+    def insert_result(self, config_name, run_number, result, execution_time, arguments, cpu_percent, memory_percent):
+        conn = sqlite3.connect(self.database_name)
+        cur = conn.cursor()
+
         table_name = f"{config_name}_results"
         run_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         cur.execute(
             f"INSERT INTO {table_name} (run_number, result, execution_time, arguments, test, run_date, cpu_percent, memory_percent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (run_number, result, execution_time, json.dumps(arguments), "not tested", run_date, cpu_percent, memory_percent))
+
+        conn.commit()
+        conn.close()
+
+    def create_usage_table(self, config_name):
+        conn = sqlite3.connect(self.database_name)
+        cur = conn.cursor()
+
+        table_name = f"{config_name}_usage"
+        cur.execute(f'''
+            CREATE TABLE IF NOT EXISTS {table_name} (
+                run_number INTEGER,
+                cpu_usage REAL,
+                memory_usage REAL,
+                timestamp TEXT
+            )
+        ''')
+
+        conn.commit()
+        conn.close()
+
+    def insert_usage(self, config_name, run_number, cpu_usage, memory_usage):
+        conn = sqlite3.connect(self.database_name)
+        cur = conn.cursor()
+
+        table_name = f"{config_name}_usage"
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        cur.execute(
+            f"INSERT INTO {table_name} (run_number, cpu_usage, memory_usage, timestamp) VALUES (?, ?, ?, ?)",
+            (run_number, cpu_usage, memory_usage, timestamp))
 
         conn.commit()
         conn.close()
@@ -121,4 +181,19 @@ class DatabaseManager:
         df = pd.read_sql_query(f"SELECT * FROM {table_name}", conn)
         conn.close()
         return df
+
+    def get_usage_data(self, config_name, run_number):
+        conn = sqlite3.connect(self.database_name)
+        cur = conn.cursor()
+
+        table_name = f"{config_name}_usage"
+        cur.execute(f"SELECT * FROM {table_name} WHERE run_number = ?", (run_number,))
+        usage_data = cur.fetchall()
+
+        conn.close()
+
+        # Convert the raw data to a list of dictionaries for easier processing
+        data = [dict(zip(["run_number", "cpu_usage", "memory_usage", "timestamp"], row)) for row in usage_data]
+
+        return data
 

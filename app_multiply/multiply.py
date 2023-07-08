@@ -42,9 +42,9 @@ def power_consuming_function_multiprocessing(number, iterations=10 ** 7):
 
 
 def save_to_csv(result):
-    output_dir = "/app/output"
+    output_dir = "/data"  # Change this to match volume_path_container
     os.makedirs(output_dir, exist_ok=True)  # Create the output directory if it doesn't exist
-    filename = os.path.join(output_dir, 'result.csv')
+    filename = os.path.join(output_dir, 'tttt.csv')
     mode = 'w'  # Always open in write mode
 
     with open(filename, mode, newline='') as csvfile:
@@ -58,10 +58,10 @@ if __name__ == '__main__':
     parser.add_argument('--number', required=True, type=int,
                         help='The number to be multiplied')
     args = parser.parse_args()
-    # result = multiply(args.number)
+    result = multiply(args.number)
     # result = complex_multiply(args.number)
-    result = power_consuming_function_multiprocessing(args.number)
+    # result = power_consuming_function_multiprocessing(args.number)
     # result = memory_consuming_function()
-    # print(result)
+    print(result, "GGGGGGGG")
 
     save_to_csv(result)

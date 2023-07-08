@@ -1,31 +1,12 @@
-import subprocess
 import sys
 import json
 import sqlite3
-import time
-import requests
-import pandas as pd
 import os
 from database_manager import DatabaseManager
-import psutil
 import docker
 import time
 
 client = docker.from_env()
-
-
-def process_results(results, app_name, config):
-    output_file = config["app_output_file"]
-    output_columns = config["output_columns"]
-
-    data = [row.split(',') for row in results.split('\n') if row]
-    df = pd.DataFrame(data, columns=output_columns)
-    df.to_csv(output_file, index=False)
-    print(f"Results saved to {output_file}")
-    try:
-        requests.get('http://localhost:5000/trigger_update')
-    except requests.exceptions.RequestException:
-        pass
 
 
 def build_docker(image_name, context_path, dockerfile):
@@ -86,6 +67,12 @@ def run_docker(db_manager, run_number, image_name, container_name, command):
         print(f"Stopped and removed container {container_name}")
     except docker.errors.NotFound:
         print(f"Container {container_name} not found. It may not have been created or may have already been removed.")
+
+
+    # Define the volume
+    volume_path_host = os.getcwd()  # Current directory
+    volume_path_container = "/data"  # Directory in the container
+    volumes = {volume_path_host: {'bind': volume_path_container, 'mode': 'rw'}}
 
     container = client.containers.create(image_name, name=container_name, command=command, detach=True)
     container.start()
@@ -179,10 +166,6 @@ if __name__ == '__main__':
     print(f"Execution time: {execution_time:.4f} seconds")
     print(f"Average CPU usage: {cpu_percent:.2f}%")
     print(f"Average memory usage: {memory_percent:.2f}%")
-
-    # Save the results to the specified format
-    if config["output_format"] == "csv":
-        process_results(result, config["app_name"], config)
 
     # Create a table for the config_name if it doesn't exist
     # db_manager.create_table_for_config(config_name)
